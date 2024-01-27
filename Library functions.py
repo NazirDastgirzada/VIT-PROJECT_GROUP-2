@@ -4,6 +4,8 @@ from rich.console import console
 from typing import Optional
 from datetime import datetime
 
+conn = sqlite3.connect('library.db')
+cursor = conn.cursor()
 
 @app.command("sign_up")
 def sign_up(user_name: str, password: str):
