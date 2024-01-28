@@ -9,7 +9,7 @@ def db_connection():
 
 # function: sign-up
 user = "osamah"
-password = "whatever"
+pw = "whatever"
 def sign_up(username: str, password: str):
     connection = db_connection()
     cursor = connection.cursor()
@@ -20,7 +20,7 @@ def sign_up(username: str, password: str):
     print(password)
     connection.close()
 
-sign_up(user,password)
+sign_up(user,pw)
 
 
 
