@@ -14,7 +14,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS users (
 
 c.execute("""CREATE TABLE IF NOT EXISTS books (
     book_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT,
+    book_name TEXT,
     author TEXT,
     pages INTEGER,
     genre TEXT,
@@ -57,6 +57,17 @@ c.execute("""CREATE TABLE IF NOT EXISTS favorite_books (
     FOREIGN KEY (user_id) REFERENCES user(user_id),
     FOREIGN KEY (book_id) REFERENCES book(book_id)
     )""")
+
+# Define the new column name
+new_column_name = 'book_instance_id'
+
+# Define the old column name
+old_column_name = 'instance_id'
+
+# Define the SQL statement to rename the column
+sql_query = f"ALTER TABLE book_instance RENAME COLUMN {old_column_name} TO {new_column_name};"
+c.execute(sql_query)
+
 
 conn.commit()
 conn.close()
