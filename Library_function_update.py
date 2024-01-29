@@ -13,7 +13,7 @@ def sign_in(username: str, password: str):
     # Check the validity of the username and password
     cursor.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
     if cursor.fetchone() is not None:
-        # Generate a unique session ID
+        # Generate a unique session IDs
         session_id = generate_session_id()
         
         # Store the session ID and username in the sessions table
