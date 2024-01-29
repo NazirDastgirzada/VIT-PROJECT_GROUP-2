@@ -14,7 +14,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS users (
 
 c.execute("""CREATE TABLE IF NOT EXISTS books (
     book_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    book_name TEXT,
+    book_title TEXT,
     author TEXT,
     pages INTEGER,
     genre TEXT,
@@ -22,13 +22,13 @@ c.execute("""CREATE TABLE IF NOT EXISTS books (
     )""")
 
 c.execute("""CREATE TABLE IF NOT EXISTS book_instance (
-    instance_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_instance_id INTEGER PRIMARY KEY AUTOINCREMENT,
     book_id INTEGER,
     availability INTEGER,
     date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
     added_by INTEGER,
-    FOREIGN KEY (book_id) REFERENCES book(book_id),
-    FOREIGN KEY (added_by) REFERENCES user(user_id)
+    FOREIGN KEY (book_id) REFERENCES books(book_id),
+    FOREIGN KEY (added_by) REFERENCES users(user_id)
     )""")
 
 c.execute("""CREATE TABLE IF NOT EXISTS borrowed_books (
@@ -36,8 +36,8 @@ c.execute("""CREATE TABLE IF NOT EXISTS borrowed_books (
     user_id INTEGER,
     book_instance_id INTEGER,
     borrow_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
-    FOREIGN KEY (book_instance_id) REFERENCES book_instance(instance_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (book_instance_id) REFERENCES book_instance(book_instance_id)
     )""")
 
 c.execute("""CREATE TABLE IF NOT EXISTS read_books (
@@ -45,8 +45,8 @@ c.execute("""CREATE TABLE IF NOT EXISTS read_books (
     user_id INTEGER,
     book_id INTEGER,
     read_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
-    FOREIGN KEY (book_id) REFERENCES book(book_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id)
     )""")
 
 c.execute("""CREATE TABLE IF NOT EXISTS favorite_books (
@@ -54,19 +54,19 @@ c.execute("""CREATE TABLE IF NOT EXISTS favorite_books (
     user_id INTEGER,
     book_id INTEGER,
     favorite_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
-    FOREIGN KEY (book_id) REFERENCES book(book_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id)
     )""")
 
-# Define the new column name
-new_column_name = 'book_instance_id'
+# # Define the new column name
+# new_column_name = 'book_instance_id'
 
-# Define the old column name
-old_column_name = 'instance_id'
+# # Define the old column name
+# old_column_name = 'instance_id'
 
-# Define the SQL statement to rename the column
-sql_query = f"ALTER TABLE book_instance RENAME COLUMN {old_column_name} TO {new_column_name};"
-c.execute(sql_query)
+# # Define the SQL statement to rename the column
+# sql_query = f"ALTER TABLE book_instance RENAME COLUMN {old_column_name} TO {new_column_name};"
+# c.execute(sql_query)
 
 
 conn.commit()
