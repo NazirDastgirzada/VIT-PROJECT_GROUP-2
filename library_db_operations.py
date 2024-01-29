@@ -1,7 +1,5 @@
 import sqlite3
 from datetime import datetime
-# allow only public functions to be exported (functions that don't start with _)
-__all__ = ['public_function']
 
 # Func: get database connection
 def get_connection():
@@ -27,33 +25,28 @@ def _db_execute_query(query, values=None):
     conn.commit()
     conn.close()
 
-
-
-
-
 # Func: insert user to database
-def db_insert_user(username, password):
+def db_insert_user(email, username, password):
     # Check if the username already exists
     existing_users = db_fetch_users_by_username(username)
     if existing_users:
         print("Username already exists. Please choose a different username.")
         return
     # If the username does not exist, insert the new user
-    query = "INSERT INTO users (username, password) VALUES (?, ?)"
-    values = (username, password)
+    query = "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
+    values = (email, username, password)
     _db_execute_query(query, values)
 
 # Func: insert book to database
 def db_insert_book(book_title, author, pages, genre, quantity, added_by):
     # Check if the book title already exists
-    conn = get_connection()
     existing_books = db_fetch_books_by_title(book_title)
     if existing_books:
-        book_id = existing_books[0][0]  # Get the book_id of the existing book
+        (book_id, _) = existing_books[0]  # Get the book_id of the existing book, can also use [0][0]
         # Insert book instances into the book_instance table
         date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for _ in range(quantity):
-            instance_query = "INSERT INTO book_instance (book_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
+            instance_query = "INSERT INTO book_instance (title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
             instance_values = (book_id, date_added, added_by)
             _db_execute_query(instance_query, instance_values)
         # Update the quantity of the book in the books table
@@ -66,34 +59,34 @@ def db_insert_book(book_title, author, pages, genre, quantity, added_by):
         query = "INSERT INTO books (book_title, author, pages, genre, quantity) VALUES (?, ?, ?, ?, ?)"
         values = (book_title, author, pages, genre, quantity)
         _db_execute_query(query, values)
-        conn = sqlite3.connect("library.db")
-        c = conn.cursor()
-        book_id = c.lastrowid  # Get the ID of the newly inserted book
+        conn = get_connection()
+        cursor = conn.cursor()
+        conn.execute("SELECT book_id FROM books WHERE book_title = ? AND author = ?", (book_title, author))
+        book_id = conn.fetchone()[0] # Get the ID of the newly inserted book
         # Insert book instances into the book_instance table
         date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         for _ in range(quantity):
-            instance_query = "INSERT INTO book_instance (book_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
+            instance_query = "INSERT INTO book_instance (title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
             instance_values = (book_id, date_added, added_by)
             _db_execute_query(instance_query, instance_values)
         conn.commit()
         conn.close()
         print(f"{quantity} instance(s) of '{book_title}' were added to the library.")
 
-
-
-
+# Func: fetch users by username
 def db_fetch_users_by_username(username):
-    query = f"SELECT * FROM users WHERE username = '{username}'"
-    result = _db_execute_select_query(query)
+    query = "SELECT * FROM users WHERE username = ?"
+    result = _db_execute_select_query(query, (username,))
     return result
 
+# Func: fetch books by title
 def db_fetch_books_by_title(book_title):
-    query = f"SELECT * FROM books WHERE book_title = '{book_title}'"
-    result = _db_execute_select_query(query)
+    query = "SELECT * FROM books WHERE book_title = ?"
+    result = _db_execute_select_query(query, (book_title,))
     return result
 
 
-query_ = "SELECT * FROM books WHERE name LIKE ?"
+# query_ = "SELECT * FROM books WHERE name LIKE ?"
 
 # /* func #5: search by author */
 # SELECT * FROM book WHERE author LIKE '%search_term%';

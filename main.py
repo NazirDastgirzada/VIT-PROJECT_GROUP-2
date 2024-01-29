@@ -2,42 +2,58 @@ import sqlite3
 import datetime
 import bcrypt
 import typer
-# db connection function
-def db_connection():
-    connection = sqlite3.connect('library.db')
-    return connection
 
-# function: sign-up
-user = "osamah"
-pw = "whatever"
-def sign_up(username: str, password: str):
-    connection = db_connection()
-    cursor = connection.cursor()
-    # cursor.execute("INSERT INTO user (username, password) VALUES (?, ?)", (username, password))
-    connection.commit()
-    print("User signed up successfully!")
-    print(username)
-    print(password)
-    connection.close()
+app = typer.Typer()
 
-sign_up(user,pw)
+def start():
+    """"Welcome to Group2 Library System."""
+
+def main():
+    app()
+
+if __name__ == "__main__":
+    main()
 
 
 
-# function: sign in
+# # db connection function
+# def db_connection():
+#     connection = sqlite3.connect('library.db')
+#     return connection
 
-# finction: sign out
+# # function: sign-up
+# user = "osamah"
+# pw = "whatever"
+# def sign_up(username: str, password: str):
+#     connection = db_connection()
+#     cursor = connection.cursor()
+#     # cursor.execute("INSERT INTO user (username, password) VALUES (?, ?)", (username, password))
+#     connection.commit()
+#     print("User signed up successfully!")
+#     print(username)
+#     print(password)
+#     connection.close()
 
-# fucntion: add book
+# sign_up(user,pw)
 
-# function: borrow book
 
-# function: return Book
 
-# function: mark Read
+# # function: sign in
 
-# function: favorite book
+# # finction: sign out
 
-# function: my books
+# # fucntion: add book
 
-# function: statistics
+# # function: borrow book
+
+# # function: return Book
+
+# # function: mark Read
+
+# # function: favorite book
+
+# # function: my books
+
+# # function: statistics
+
+
