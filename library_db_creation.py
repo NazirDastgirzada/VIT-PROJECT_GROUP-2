@@ -28,7 +28,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS book_instance (
     availability INTEGER,
     date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
     added_by INTEGER,
-    FOREIGN KEY (book_id) REFERENCES books(book_id),
+    FOREIGN KEY (title_id) REFERENCES books(book_id),
     FOREIGN KEY (added_by) REFERENCES users(user_id)
     )""")
 
@@ -61,14 +61,14 @@ c.execute("""CREATE TABLE IF NOT EXISTS favorite_books (
 
 # -----------------------------------------
 # Define the new column name
-new_column_name = 'title_id'
+# new_column_name = 'title_id'
 
-# Define the old column name
-old_column_name = 'book_id'
+# # Define the old column name
+# old_column_name = 'book_id'
 
-# Define the SQL statement to rename the column
-sql_query = f"ALTER TABLE book_instance RENAME COLUMN {old_column_name} TO {new_column_name};"
-c.execute(sql_query)
+# # Define the SQL statement to rename the column
+# sql_query = f"ALTER TABLE book_instance RENAME COLUMN {old_column_name} TO {new_column_name};"
+# c.execute(sql_query)
 # -----------------------------------------
 # Adding a column to an existing table
 # sql_query = "ALTER TABLE users ADD COLUMN email TEXT"
