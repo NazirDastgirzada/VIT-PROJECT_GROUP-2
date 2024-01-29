@@ -1,17 +1,41 @@
-from library_db_operations import *
+import library_db_operations as dbo
 import random
 
 # Function to register a new user
-def register_user(username, password):
-    # Check if the username is available
-    if not db_check_username(username):
+def user_sign_up(email, username, password):
+    try:
         # Insert the new user into the database
-        db_insert_user(username, password)
+        dbo.db_insert_user(email, username, password)
         print(f"User '{username}' registered successfully.")
-    else:
-        print("Username already exists. Please choose a different username.")
+    except Exception as e:
+        print(f"Error occurred during user sign-up: {str(e)}")
 
+def user_sign_in(username: str, password: str) -> bool:
+    """
+    Sign in the user with the provided username and password.
+    Returns True if sign-in is successful, False otherwise.
+    """
+    # Check if the user exists in the database
+    user = dbo.db_fetch_users_by_username(username)
 
+    if not user:
+        print("User does not exist. Please register first.")
+        return False
+
+    user = user[0]
+    if user[3] != password:
+        print("Incorrect password. Please try again.")
+        return False
+
+    print(f"Welcome back, {username}!")
+    return True
+
+def add_book(book_title, author, pages, genre, quantity_added, added_by):
+    try:
+        message = dbo.db_insert_book(book_title, author, pages, genre, quantity_added, added_by)
+        print(message)
+    except Exception as e:
+        print(f"Error adding book '{book_title}': {str(e)}")
 
 
 # conn = sqlite3.connect('library.db')

@@ -38,40 +38,38 @@ def db_insert_user(email, username, password):
     _db_execute_query(query, values)
 
 # Func: insert book to database
-def db_insert_book(book_title, author, pages, genre, quantity, added_by):
-    # Check if the book title already exists
-    existing_books = db_fetch_books_by_title(book_title)
+def db_insert_book(book_title, author, pages, genre, quantity_added, added_by):
+    existing_books = db_fetch_books(book_title=book_title, author=author)
+
     if existing_books:
-        (book_id, _) = existing_books[0]  # Get the book_id of the existing book, can also use [0][0]
-        # Insert book instances into the book_instance table
-        date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for _ in range(quantity):
-            instance_query = "INSERT INTO book_instance (title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
-            instance_values = (book_id, date_added, added_by)
-            _db_execute_query(instance_query, instance_values)
-        # Update the quantity of the book in the books table
-        update_query = "UPDATE books SET quantity = quantity + ? WHERE book_id = ?"
-        update_values = (quantity, book_id)
-        _db_execute_query(update_query, update_values)
-        print(f"{quantity} instance(s) of '{book_title}' added to the library.")
+        book_id, current_quantity = existing_books[0][0], existing_books[0][5]
+        new_quantity = current_quantity + quantity_added
+        _update_book_quantity(book_id, new_quantity)
+        _insert_book_instances(book_id, quantity_added, added_by)
+        return f"{quantity_added} instance(s) of '{book_title}' were added to the library."
     else:
-        # Insert the new book into the books table
-        query = "INSERT INTO books (book_title, author, pages, genre, quantity) VALUES (?, ?, ?, ?, ?)"
-        values = (book_title, author, pages, genre, quantity)
-        _db_execute_query(query, values)
-        conn = get_connection()
-        cursor = conn.cursor()
-        conn.execute("SELECT book_id FROM books WHERE book_title = ? AND author = ?", (book_title, author))
-        book_id = conn.fetchone()[0] # Get the ID of the newly inserted book
-        # Insert book instances into the book_instance table
-        date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        for _ in range(quantity):
-            instance_query = "INSERT INTO book_instance (title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
-            instance_values = (book_id, date_added, added_by)
-            _db_execute_query(instance_query, instance_values)
-        conn.commit()
-        conn.close()
-        print(f"{quantity} instance(s) of '{book_title}' were added to the library.")
+        book_id = _insert_new_book(book_title, author, pages, genre, quantity_added)
+        _insert_book_instances(book_id, quantity_added, added_by)
+        return f"{quantity_added} instance(s) of '{book_title}' were added to the library."
+
+def _update_book_quantity(book_id, new_quantity):
+    update_query = "UPDATE books SET quantity = ? WHERE book_id = ?"
+    update_values = (new_quantity, book_id)
+    _db_execute_query(update_query, update_values)
+
+def _insert_book_instances(book_id, quantity_added, added_by):
+    date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for _ in range(quantity_added):
+        instance_query = "INSERT INTO book_instance (title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
+        instance_values = (book_id, date_added, added_by)
+        _db_execute_query(instance_query, instance_values)
+
+def _insert_new_book(book_title, author, pages, genre, quantity_added):
+    query = "INSERT INTO books (book_title, author, pages, genre, quantity) VALUES (?, ?, ?, ?, ?)"
+    values = (book_title, author, pages, genre, quantity_added)
+    _db_execute_query(query, values)
+    return _db_execute_select_query("SELECT last_insert_rowid()")[0][0]
+
 
 # Func: fetch users by username
 def db_fetch_users_by_username(username):
@@ -79,11 +77,22 @@ def db_fetch_users_by_username(username):
     result = _db_execute_select_query(query, (username,))
     return result
 
-# Func: fetch books by title
-def db_fetch_books_by_title(book_title):
-    query = "SELECT * FROM books WHERE book_title = ?"
-    result = _db_execute_select_query(query, (book_title,))
-    return result
+# Func: fetch books by variable parameters
+def db_fetch_books(**kwargs):
+    # Construct the base query
+    query = "SELECT * FROM books WHERE "
+    conditions = []
+
+    # Build the WHERE clause based on the provided search parameters
+    for key, value in kwargs.items():
+        conditions.append(f"{key} = '{value}'")
+
+    if conditions:
+        query += " AND ".join(conditions)
+
+    # Execute the query and return the results
+    return _db_execute_select_query(query)
+
 
 
 # query_ = "SELECT * FROM books WHERE name LIKE ?"

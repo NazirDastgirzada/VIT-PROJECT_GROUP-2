@@ -24,7 +24,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS books (
 
 c.execute("""CREATE TABLE IF NOT EXISTS book_instance (
     book_instance_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    book_id INTEGER,
+    title_id INTEGER,
     availability INTEGER,
     date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
     added_by INTEGER,
