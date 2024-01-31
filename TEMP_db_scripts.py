@@ -1,11 +1,21 @@
 import sqlite3
 from library_db_operations import *
+from library_functions import *
 from tabulate import tabulate
 import random
 
 # ----------------
 conn = sqlite3.connect('library.db')
 c = conn.cursor()
+# mail = "mymail@email.com"
+# un= "wonder"
+# pw="13131414"
+# user_sign_up(mail, un, pw)
+#------------------------------------------------------------
+
+# add_book("ZEN", "Mui",99 , ["Religion","Theology","Culture"], 4, 3)
+
+
 
 #------------------------------------------------------------------------------------
 # Insert data into the user table
@@ -13,28 +23,30 @@ c = conn.cursor()
 #     c.execute(f"INSERT INTO users (email, username, password) VALUES ('user{i}@email.com','user{i}', 'password{i}')")
 #------------------------------------------------------------------------------------
 # display all data in table
-# c.execute("select * from book_instance")
+# c.execute("select * from users")
 # rows = c.fetchall()
 # columns = [desc[0] for desc in c.description]
 # print(tabulate(rows, headers=columns, tablefmt='grid'))
 #------------------------------------------------------------------------------------
 # Print column names in a table
-# c.execute("PRAGMA table_info(books)")
+# c.execute("PRAGMA table_info(users)")
 # columns = c.fetchall()
 # column_names = [column[1] for column in columns]
 # print("Column Names:")
 # for name in column_names:
 #     print(name)
 # --------------------------------------------------------------------------------------------------------
-# Define genre options
-genres = ['Fantasy', 'Action', 'Romance', 'Drama', 'Horror', 'Sci-fi', 'History']
+# add books to the books and book_instance tables
 
-# Get user IDs from the 'users' table
-c.execute("SELECT user_id FROM users ORDER BY user_id")
-user_ids = [row[0] for row in c.fetchall()]
-print(user_ids)
+# # Define genre options
+# genres = ['Fantasy', 'Action', 'Romance', 'Drama', 'Horror', 'Sci-fi', 'History', 'Theology', 'philosophy','Entertainmainment', 'Sport']
 
-# Add 20 books to the database
+# # Get user IDs from the 'users' table
+# c.execute("SELECT user_id FROM users ORDER BY user_id")
+# user_ids = [row[0] for row in c.fetchall()]
+# print(user_ids)
+
+# # Add 20 books to the database
 # for i in range(20):
 #     book_title = f"Book{i}"
 #     author = f"Author{i}"
@@ -42,7 +54,7 @@ print(user_ids)
 #     genre = random.choice(genres)
 #     added_by = random.choice(user_ids)
 
-#     # Check if a book with the same title and author already exists
+# # Check if a book with the same title and author already exists
 #     c.execute("SELECT book_id, quantity FROM books WHERE book_title = ? AND author = ?", (book_title, author))
 #     existing_book = c.fetchone()
 

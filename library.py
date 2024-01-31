@@ -1,6 +1,10 @@
 import typer
+import pwinput
 import library_functions as lf
-app = typer.Typer()
+
+app = typer.Typer(
+    short_help="Welcome to the Library Program!"
+)
 
 # Define the starting screen command
 @app.command()
@@ -8,31 +12,25 @@ def start():
     typer.echo("Welcome to the Library Program!")
     typer.echo("Choose an option:")
     typer.echo("1. Sign Up")
-    typer.echo("2. Sign In")
-    typer.echo("3. Sign Out")
-    # typer.echo("4. Add a new book")
-    # typer.echo("5. Borrow a book")
-    # typer.echo("6. Return a book")
-    typer.echo("7. Exit")
 
 @app.command()
-def sign_up(email: str, username: str, password: str):
+def sign_up():
     """
-    Sign up a new user with the provided email, username, and password.
+    To sign-up please enter your email, username, and password.
     """
+    email = typer.prompt("Enter your email address:")
+    username = typer.prompt("Enter your username:")
+    password = pwinput.pwinput("Enter your password:")
     lf.user_sign_up(email, username, password)
-    typer.echo(f"User '{username}' registered successfully.")
-
 
 @app.command()
-def sign_in(username: str, password: str):
+def sign_in():
     """
     Sign in with the provided username and password.
     """
-    if lf.user_sign_in(username, password):
-        typer.echo("Sign-in successful!")
-    else:
-        typer.echo("Sign-in failed. Please check your credentials.")
+    username = typer.prompt("Enter your username:")
+    password = pwinput.pwinput("Enter your password:")
+    lf.user_sign_in(username, password)
 
 @app.command()
 def sign_out():
@@ -42,26 +40,27 @@ def sign_out():
     typer.echo("You have signed out successfully.")
 
 @app.command()
-def sign_in(username: str, password: str):
+def donate_book():
     """
-    Sign in with the provided username and password.
+    Donate books to the library.
     """
-    if lf.user_sign_in(username, password):
-        typer.echo("Sign-in successful!")
-    else:
-        typer.echo("Sign-in failed. Please check your credentials.")
+    typer.echo("Please enter the information of the book:")
+    book_title = typer.prompt("Title: ")
+    author = typer.prompt("Author: ")
+    pages = typer.prompt("Page number: ")
+    genre_names = typer.prompt("Genre(s): ")
+    quantity_added = typer.prompt("Quantity: ")
+    added_by = typer.prompt("Added by: ")  # This will be automatic later
+    lf.add_book(book_title, author, pages, genre_names, quantity_added, added_by)
 
-@app.command()
-def sign_out():
-    """
-    Sign out of the current session.
-    """
-    lf.sign_out()
-    typer.echo("You have signed out successfully.")
-
+# Add a default command for the application
+@app.callback()
+def main():
+    pass
 
 if __name__ == "__main__":
     app()
+
 
 # # db connection function
 # def db_connection():

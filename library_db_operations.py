@@ -1,97 +1,152 @@
 import sqlite3
 from datetime import datetime
 
+
 # Func: get database connection
 def get_connection():
     return sqlite3.connect('library.db')
-
-# Func: execute SELECT queries
-def _db_execute_select_query(query):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(query)
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-# Func: execute INSERT, UPDATE, DELETE queries
-def _db_execute_query(query, values=None):
-    conn = get_connection()
-    cursor = conn.cursor()
-    if values:
-        cursor.execute(query, values)
-    else:
-        cursor.execute(query)
-    conn.commit()
-    conn.close()
-
+# --------------------------
 # Func: insert user to database
 def db_insert_user(email, username, password):
-    # Check if the username already exists
-    existing_users = db_fetch_users_by_username(username)
-    if existing_users:
-        print("Username already exists. Please choose a different username.")
-        return
-    # If the username does not exist, insert the new user
-    query = "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
-    values = (email, username, password)
-    _db_execute_query(query, values)
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        query = "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
+        values = (email, username, password)
+        cursor.execute(query, values)
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
-# Func: insert book to database
-def db_insert_book(book_title, author, pages, genre, quantity_added, added_by):
-    existing_books = db_fetch_books(book_title=book_title, author=author)
+# ------------------------------------------------------------    
+# Func: search and fetch user from database
+def db_fetch_user(username=None, email=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        if username and email:
+            query = "SELECT * FROM users WHERE username = ? OR email = ?"
+            params = (username, email)
+        elif username:
+            query = "SELECT * FROM users WHERE username = ?"
+            params = (username,)
+        elif email:
+            query = "SELECT * FROM users WHERE email = ?"
+            params = (email,)
+        else:
+            return None
 
-    if existing_books:
-        book_id, current_quantity = existing_books[0][0], existing_books[0][5]
-        new_quantity = current_quantity + quantity_added
-        _update_book_quantity(book_id, new_quantity)
-        _insert_book_instances(book_id, quantity_added, added_by)
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        return rows
+    except sqlite3.Error as e:
+        print(f"Database error occurred: {str(e)}")
+        return None
+    finally:
+        conn.close()
+# ------------------------------------------------------------    
+# Func: add book titles to the "books" database
+def db_book_insert(book_title, author, pages, genre_names, quantity_added, added_by):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Convert quantity_added and added_by to integers
+        quantity_added = int(quantity_added)
+        added_by = int(added_by)
+        
+        existing_books = db_books_fetch(book_title=book_title, author=author)
+
+        if existing_books:
+            book_id, current_quantity = existing_books[0][0], existing_books[0][4]
+            new_quantity = current_quantity + quantity_added
+            cursor.execute("UPDATE books SET quantity = ? WHERE book_id = ?", (new_quantity, book_id))
+        else:
+            cursor.execute("INSERT INTO books (book_title, author, pages, quantity) VALUES (?, ?, ?, ?)", (book_title, author, pages, quantity_added))
+            book_id = cursor.lastrowid
+
+            genre_ids = []
+            for genre_name in genre_names.split(','):
+                genre_id = _db_genre_fetch_or_create(genre_name.strip(), cursor)
+                if genre_id:
+                    genre_ids.append(genre_id)
+
+            for genre_id in genre_ids:
+                db_book_genre_relation_update(book_id, genre_id, cursor)
+
+        _db_book_insert_instances(book_id, quantity_added, added_by, cursor)
+        conn.commit()
         return f"{quantity_added} instance(s) of '{book_title}' were added to the library."
-    else:
-        book_id = _insert_new_book(book_title, author, pages, genre, quantity_added)
-        _insert_book_instances(book_id, quantity_added, added_by)
-        return f"{quantity_added} instance(s) of '{book_title}' were added to the library."
-
-def _update_book_quantity(book_id, new_quantity):
-    update_query = "UPDATE books SET quantity = ? WHERE book_id = ?"
-    update_values = (new_quantity, book_id)
-    _db_execute_query(update_query, update_values)
-
-def _insert_book_instances(book_id, quantity_added, added_by):
-    date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    for _ in range(quantity_added):
-        instance_query = "INSERT INTO book_instance (title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+# ------------------------------------------------------------    
+# Func: add book copies to the "book_instance" database
+def _db_book_insert_instances(book_id, quantity_added, added_by, cursor):
+    try:
+        date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        instance_query = "INSERT INTO book_instance (book_title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
         instance_values = (book_id, date_added, added_by)
-        _db_execute_query(instance_query, instance_values)
+        for _ in range(quantity_added):
+            cursor.execute(instance_query, instance_values)
+    except sqlite3.Error as e:
+        print(f"Error inserting book instance: {e}")
+# ------------------------------------------------------------    
+# Func: search for and fetch books by modular arguments from the database
+def db_books_fetch(**kwargs):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-def _insert_new_book(book_title, author, pages, genre, quantity_added):
-    query = "INSERT INTO books (book_title, author, pages, genre, quantity) VALUES (?, ?, ?, ?, ?)"
-    values = (book_title, author, pages, genre, quantity_added)
-    _db_execute_query(query, values)
-    return _db_execute_select_query("SELECT last_insert_rowid()")[0][0]
-
-
-# Func: fetch users by username
-def db_fetch_users_by_username(username):
-    query = "SELECT * FROM users WHERE username = ?"
-    result = _db_execute_select_query(query, (username,))
-    return result
-
-# Func: fetch books by variable parameters
-def db_fetch_books(**kwargs):
     # Construct the base query
     query = "SELECT * FROM books WHERE "
     conditions = []
 
     # Build the WHERE clause based on the provided search parameters
     for key, value in kwargs.items():
-        conditions.append(f"{key} = '{value}'")
+        conditions.append(f"{key} = ?")
 
     if conditions:
         query += " AND ".join(conditions)
 
-    # Execute the query and return the results
-    return _db_execute_select_query(query)
+    # Execute the query with parameters and return the results
+    cursor.execute(query, tuple(kwargs.values()))
+    rows = cursor.fetchall()
+
+    conn.close()
+    return rows
+# ----------------------------------------------------------
+# Func: check if newly added genres are in the genre database, if not, add them to database
+def _db_genre_fetch_or_create(genre_name, cursor):
+    query = "SELECT genre_id FROM genres WHERE genre_name = ?"
+    cursor.execute(query, (genre_name,))
+    result = cursor.fetchone()
+    if result:
+        return result[0]
+    else:
+        try:
+            cursor.execute("INSERT INTO genres (genre_name) VALUES (?)", (genre_name,))
+            return cursor.lastrowid
+        except sqlite3.Error as e:
+            print(f"Error inserting genre: {e}")
+# ------------------------------------------------------------    
+# Func: add book-genre relationship too "book_genres" database (many to many)
+def db_book_genre_relation_update(book_id, genre_ids, cursor):
+    try:
+        query = "INSERT INTO book_genres (book_id, genre_id) VALUES (?, ?)"
+        if isinstance(genre_ids, list):
+            for genre_id in genre_ids:
+                cursor.execute(query, (book_id, genre_id))
+        else:
+            cursor.execute(query, (book_id, genre_ids))
+    except sqlite3.Error as e:
+        print(f"Error inserting book-genre relation: {e}")
+
+
 
 
 
