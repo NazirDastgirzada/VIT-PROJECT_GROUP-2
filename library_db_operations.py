@@ -12,15 +12,13 @@ def db_insert_user(email, username, password):
     cursor = conn.cursor()
     try:
         query = "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
-        values = (email, username, password)
-        cursor.execute(query, values)
+        cursor.execute(query, (email, username, password))
         conn.commit()
     except sqlite3.Error as e:
         conn.rollback()
         raise e
     finally:
         conn.close()
-
 # ------------------------------------------------------------    
 # Func: search and fetch user from database
 def db_fetch_user(username=None, email=None):
@@ -47,6 +45,44 @@ def db_fetch_user(username=None, email=None):
         return None
     finally:
         conn.close()
+
+
+def db_session_start(user_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        sign_in_time = datetime.now()
+        cursor.execute("INSERT INTO user_sessions (user_id, sign_in_time) VALUES (?, ?)", (user_id, sign_in_time))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Error starting session: {str(e)}")
+
+def db_session_end(user_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        sign_out_time = datetime.now()
+        cursor.execute("UPDATE user_sessions SET sign_out_time = ?, is_active = 0 WHERE user_id = ? AND is_active = 1", (sign_out_time, user_id))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Error ending session: {str(e)}")
+
+def db_user_signed_in(user_id):
+    conn = sqlite3.connect('library.db')
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT is_active FROM user_sessions WHERE user_id = ? AND is_active = 1", (user_id,))
+        session = cursor.fetchone()
+        return session is not None
+    except sqlite3.Error as e:
+        print(f"SQLite error: {e}")
+        return False
+    finally:
+        conn.close()
+
 # ------------------------------------------------------------    
 # Func: add book titles to the "books" database
 def db_book_insert(book_title, author, pages, genre_names, quantity_added, added_by):
@@ -85,17 +121,17 @@ def db_book_insert(book_title, author, pages, genre_names, quantity_added, added
         raise e
     finally:
         conn.close()
+
 # ------------------------------------------------------------    
-# Func: add book copies to the "book_instance" database
+# Func: add book copies to the "book_inventory" database
 def _db_book_insert_instances(book_id, quantity_added, added_by, cursor):
     try:
-        date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        instance_query = "INSERT INTO book_instance (book_title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
-        instance_values = (book_id, date_added, added_by)
-        for _ in range(quantity_added):
-            cursor.execute(instance_query, instance_values)
+        current_time = datetime.now()
+        instances_data = [(book_id, 1, current_time, added_by) for _ in range(quantity_added)]
+        cursor.executemany("INSERT INTO book_inventory (book_id, availability, date_added, added_by) VALUES (?, ?, ?, ?)", instances_data)
     except sqlite3.Error as e:
-        print(f"Error inserting book instance: {e}")
+        # Handle the error appropriately, e.g., logging or raising an exception
+        print(f"Error inserting book instances: {e}")
 # ------------------------------------------------------------    
 # Func: search for and fetch books by modular arguments from the database
 def db_books_fetch(**kwargs):
@@ -146,67 +182,132 @@ def db_book_genre_relation_update(book_id, genre_ids, cursor):
     except sqlite3.Error as e:
         print(f"Error inserting book-genre relation: {e}")
 
+# Func: borrow-book database queries/actions
+def db_book_borrow(user_id, book_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Update book availability to 0 (unavailable) for the borrowed copy
+        cursor.execute("UPDATE book_inventory SET availability = 0 WHERE book_id = ? AND availability = 1 LIMIT 1", (book_id,))
+        
+        # Record the borrow interaction
+        db_record_interaction(user_id, book_id, 'borrowed', cursor)
 
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
+# Func: user-returns-a-book database queries/actions
+def db_book_return(user_id, book_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Update book availability to 1 (available) for the returned copy
+        cursor.execute("UPDATE book_inventory SET availability = 1 WHERE book_id = ? AND availability = 0", (book_id,))
+        
+        # Record the return interaction
+        db_record_interaction(user_id, book_id, 'returned', cursor)
 
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
-# query_ = "SELECT * FROM books WHERE name LIKE ?"
+# Func: user-marks-a-book-as-read database queries/actions
+def db_book_read(user_id, book_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Record the read interaction
+        db_record_interaction(user_id, book_id, 'read', cursor)
 
-# /* func #5: search by author */
-# SELECT * FROM book WHERE author LIKE '%search_term%';
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
-# /* func #6-1 search recently-added books */
-# SELECT * FROM book ORDER BY date_added DESC LIMIT 5;
+# Func: user-marks-a-book-as-favorite database queries/actions
+def db_book_favorite(user_id, book_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Record the favorite interaction
+        db_record_interaction(user_id, book_id, 'favorite', cursor)
 
-# /* func #6-2 search recently added books by genre */
-# SELECT * FROM book WHERE genre = 'specified_genre' ORDER BY date_added DESC LIMIT 5;
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
 
-# /* func #7-1 search most read books: */
-# SELECT book.*, COUNT(read_books.read_id) AS read_count 
-# FROM book 
-# LEFT JOIN read_books ON book_instance.book_id = read_books.book_instance_id 
-# GROUP BY book.book_id 
-# ORDER BY read_count DESC 
-# LIMIT 10;
+# Func: any user-book interaction database queries/actions
+def db_record_interaction(user_id, book_id, interaction_type, cursor):
+    try:
+        interaction_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute("INSERT INTO user_book_interactions (user_id, book_id, interaction_type, interaction_date) VALUES (?, ?, ?, ?)",
+                       (user_id, book_id, interaction_type, interaction_date))
+    except sqlite3.Error as e:
+        print(f"Error recording interaction: {e}")
 
-# /* func #7-1 search most read books by genre: */
-# SELECT book.*, COUNT(read_books.read_id) AS read_count 
-# FROM book 
-# LEFT JOIN read_books ON book_instance.book_id = read_books.book_instance_id 
-# WHERE book.genre = 'specified_genre' 
-# GROUP BY book.book_id 
-# ORDER BY read_count DESC 
-# LIMIT 10;
+import sqlite3
 
-# /* func #8-1 search most favorite books: */
-# SELECT book.*, COUNT(favorite_books.favorite_id) AS favorite_count 
-# FROM book 
-# LEFT JOIN favorite_books ON book_instance.book_id = favorite_books.book_instance_id 
-# GROUP BY book.book_id 
-# ORDER BY favorite_count DESC 
-# LIMIT 10;
+def db_search_books(book_title=None, author=None, genres=None, date_added=None, limit=None, order_by=None, order_dir="ASC"):
+    conn = sqlite3.connect('library.db')
+    cursor = conn.cursor()
 
-# /* func #8-2 search most favorite books by genre: */
-# SELECT book.*, COUNT(favorite_books.favorite_id) AS favorite_count 
-# FROM book 
-# LEFT JOIN favorite_books ON book_instance.book_id = favorite_books.book_instance_id 
-# WHERE book.genre = 'specified_genre' 
-# GROUP BY book.book_id 
-# ORDER BY favorite_count DESC 
-# LIMIT 10;
+    # Base query
+    query = "SELECT b.book_id, b.book_title, b.author, b.pages, b.quantity, " \
+            "GROUP_CONCAT(g.genre_name, ', ') AS genres " \
+            "FROM books b " \
+            "LEFT JOIN book_genres bg ON b.book_id = bg.book_id " \
+            "LEFT JOIN genres g ON bg.genre_id = g.genre_id "
 
-# /* func #9 search most read genres: */
-# SELECT book.genre, COUNT(read_books.read_id) AS read_count 
-# FROM book 
-# LEFT JOIN read_books ON book_instance.book_id = read_books.book_instance_id 
-# GROUP BY book.genre 
-# ORDER BY read_count DESC 
-# LIMIT 5;
+    # Constructing WHERE clause
+    conditions = []
+    params = []
 
-# /* func #10 search most read authors: */
-# SELECT book.author, COUNT(read_books.read_id) AS read_count 
-# FROM book 
-# LEFT JOIN read_books ON book_instance.book_id = read_books.book_instance_id 
-# GROUP BY book.author 
-# ORDER BY read_count DESC 
-# LIMIT 3;
+    if book_title:
+        conditions.append("b.book_title LIKE ?")
+        params.append(f"%{book_title}%")
+    if author:
+        conditions.append("b.author LIKE ?")
+        params.append(f"%{author}%")
+    if genres:
+        genres_conditions = " OR ".join(["g.genre_name LIKE ?" for _ in genres])
+        conditions.append(f"({genres_conditions})")
+        params.extend([f"%{genre}%" for genre in genres])
+    if date_added:
+        conditions.append("date_added = ?")
+        params.append(date_added)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    # Grouping and ordering
+    query += " GROUP BY b.book_id"
+
+    # Ordering
+    if order_by:
+        query += f" ORDER BY {order_by} {order_dir}"
+
+    # Limiting results
+    if limit:
+        query += f" LIMIT {limit}"
+
+    try:
+        cursor.execute(query, params)
+        books = cursor.fetchall()
+        return books
+    except sqlite3.Error as e:
+        print(f"Error searching for books: {e}")
+        return None
+    finally:
+        conn.close()

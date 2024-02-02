@@ -25,27 +25,18 @@ c.execute("""CREATE TABLE IF NOT EXISTS books (
     author TEXT NOT NULL,
     pages INTEGER,
     quantity INTEGER,
+    first_added_date DATETIME DEFAULT CURRENT_TIMESTAMP, -- New column to track the first time a book entered the library
     CONSTRAINT title_author_unique UNIQUE (book_title, author) -- Ensure uniqueness of title and author combination
 )""")
 
 # Create the book_instance table
-c.execute("""CREATE TABLE IF NOT EXISTS book_instance (
-    book_instance_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    book_title_id INTEGER NOT NULL,
+c.execute("""CREATE TABLE IF NOT EXISTS book_inventory (
+    copy_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER NOT NULL,
     availability INTEGER NOT NULL DEFAULT 1, -- 1 for available, 0 for unavailable
     date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
     added_by INTEGER,
-    FOREIGN KEY (book_title_id) REFERENCES books(book_id),
-    FOREIGN KEY (added_by) REFERENCES users(user_id)
-    )""")
-
-c.execute("""CREATE TABLE IF NOT EXISTS book_instance (
-    book_instance_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title_id INTEGER,
-    availability INTEGER,
-    date_added DATETIME DEFAULT CURRENT_TIMESTAMP,
-    added_by INTEGER,
-    FOREIGN KEY (title_id) REFERENCES books(book_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id),
     FOREIGN KEY (added_by) REFERENCES users(user_id)
     )""")
 
@@ -105,6 +96,14 @@ c.execute("""CREATE TABLE IF NOT EXISTS user_book_interactions (
     FOREIGN KEY (book_id) REFERENCES books(book_id)
 )""")
 
+c.execute("""CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    sign_in_time DATETIME NOT NULL,
+    sign_out_time DATETIME,
+    is_active INTEGER DEFAULT 1, -- 1 for active, 0 for inactive
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+)""")
 
 # -----------------------------------------
 # Define the new column name
