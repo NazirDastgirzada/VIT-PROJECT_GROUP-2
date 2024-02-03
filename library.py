@@ -8,7 +8,7 @@ app = typer.Typer()
 
 
 # Define the starting screen command and set it to invoke automatically
-@app.command1()
+@app.command()
 def sign_up():
     """
     To sign-up please enter your email, username, and password.
@@ -18,7 +18,7 @@ def sign_up():
     password = pwinput.pwinput("Enter your password:")
     lf.user_sign_up(email, username, password)
 
-@app.command2()
+@app.command()
 def sign_in():
     """
     Sign in with the provided username and password.
@@ -27,7 +27,7 @@ def sign_in():
     password = pwinput.pwinput("Enter your password:")
     lf.user_sign_in(username, password)
 
-@app.command3()
+@app.command()
 def search(available_only: bool = False):
     """
     Search for books in the library database.
@@ -52,7 +52,7 @@ def search(available_only: bool = False):
     else:
         typer.echo("No books found matching the criteria.")
 
-@app.command4()
+@app.command()
 def donate_book():
     """
     Donate books to the library.
@@ -129,6 +129,47 @@ def mark_favorite():
         typer.echo("Please sign in to mark a book as favorite.")
 
 @app.command()
+def profile(user_id: int):
+    try:
+        typer.echo("Retrieving user profile...")
+        profile_details = lf.my_profile(user_id)
+        if profile_details:
+            # Convert profile details to a tabulated format
+            headers = ["Attribute", "Value"]
+            table_data = [[key.capitalize(), str(value)] for key, value in profile_details.items()]
+            table = tabulate(table_data, headers=headers, tablefmt="grid")
+
+            # Print the tabulated profile details
+            typer.echo(table)
+        else:
+            typer.echo("No profile details found for the user.")
+    except Exception as e:
+        typer.echo(f"Error retrieving profile: {str(e)}")
+
+@app.command()
+def display_statistics(user_id: int):
+    """
+    Display user statistics.
+    """
+    try:
+        typer.echo("Retrieving user statistics...")
+        statistics = lf.user_statistics(user_id)
+        if statistics:
+            headers = ["Statistic", "Value"]
+            table_data = [
+                ["Books Read", statistics[0]],
+                ["Authors Read", statistics[1]],
+                ["Genres Read", statistics[2]],
+                ["Total Pages Read", statistics[3]]
+            ]
+            table = tabulate(table_data, headers=headers, tablefmt="grid")
+            typer.echo(table)
+        else:
+            typer.echo("No statistics found for the user.")
+    except Exception as e:
+        typer.echo(f"Error retrieving statistics: {str(e)}")
+
+@app.command()
 def sign_out():
     """
     Sign out of the current session.
@@ -139,29 +180,5 @@ def sign_out():
     typer.echo("You have signed out successfully.")
 
 
-
 if __name__ == "__main__":
     app()
-
-
-
-
-# # function: sign in
-
-# # finction: sign out
-
-# # fucntion: add book
-
-# # function: borrow book
-
-# # function: return Book
-
-# # function: mark Read
-
-# # function: favorite book
-
-# # function: my books
-
-# # function: statistics
-
-

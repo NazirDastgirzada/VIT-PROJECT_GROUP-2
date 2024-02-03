@@ -367,18 +367,16 @@ def db_search_books(book_title=None, author=None, genres=None, date_added=None, 
     if author:
         conditions.append("b.author LIKE ?")
         params.append(f"%{author}%")
-    # if genres:
-    #     genre_list = genres.split(",")
-    #     genre_conditions = ",".join(["?" for _ in range(len(genre_list))])
-    #     conditions.append(f"g.genre_name IN (%{genre_conditions}%)")
-    # params.extend(genre_list)
     if genres:
         genre_list = genres.split(",")
-        genre_conditions = " OR ".join(["g.genre_name = ?" for _ in range(len(genre_list))])
-        conditions.append(f"({genre_conditions})")
+        genre_conditions = ",".join(["?" for _ in range(len(genre_list))])
+        conditions.append(f"g.genre_name IN (%{genre_conditions}%)")
         params.extend(genre_list)
-
-    
+    # if genres:
+    #     genre_list = genres.split(",")
+    #     genre_conditions = " OR ".join(["g.genre_name = ?" for _ in range(len(genre_list))])
+    #     conditions.append(f"({genre_conditions})")
+    #     params.extend(genre_list)
     # if genres:
     #     genre_list = genres.split(",")
     #     genre_conditions = " OR ".join(["g.genre_name = ?" for _ in range(len(genre_list))])
@@ -417,12 +415,77 @@ def db_search_books(book_title=None, author=None, genres=None, date_added=None, 
         conn.close()
 
 
-from tabulate import tabulate
-result = db_search_books(genres="Adventure")
-headers = ["Title", "Author", "Pages", "Genres", "Availability"]
-table_data = [[book[1], book[2], book[3], book[5], book[6]] for book in result]  # Assuming the order of fields in the search results
-table = tabulate(table_data, headers=headers, tablefmt="grid")
-print(table)
+
+import sqlite3
+
+def db_my_profile(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        # Fetch user profile details from the database
+        cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+        user_profile = cursor.fetchone()
+        if user_profile:
+            profile_details = {
+                "user_id": user_profile[0],
+                "email": user_profile[1],
+                "username": user_profile[2],
+                # Add more profile details as needed
+            }
+            return profile_details
+        else:
+            return None
+    except sqlite3.Error as e:
+        print(f"Error retrieving user profile: {e}")
+        return None
+    finally:
+        conn.close()
+
+def db_user_statistics(user_id):
+    """
+    Retrieve user statistics from the database.
+    """
+    conn = sqlite3.connect('library.db')
+    cursor = conn.cursor()
+
+    try:
+        # Query to retrieve user statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(DISTINCT rb.book_id) AS books_read,
+                COUNT(DISTINCT rb.author) AS authors_read,
+                COUNT(DISTINCT g.genre_name) AS genres_read,
+                SUM(b.pages) AS total_pages_read
+            FROM 
+                read_books rb
+            LEFT JOIN 
+                books b ON rb.book_id = b.book_id
+            LEFT JOIN 
+                book_genres bg ON rb.book_id = bg.book_id
+            LEFT JOIN 
+                genres g ON bg.genre_id = g.genre_id
+            WHERE 
+                rb.user_id = ?
+        """, (user_id,))
+        
+        statistics = cursor.fetchone()
+        return statistics
+
+    except sqlite3.Error as e:
+        print(f"Error retrieving user statistics: {e}")
+        return None
+
+    finally:
+        conn.close()
+
+
+
+# from tabulate import tabulate
+# result = db_search_books(genres="Adventure")
+# headers = ["Title", "Author", "Pages", "Genres", "Availability"]
+# table_data = [[book[1], book[2], book[3], book[5], book[6]] for book in result]  # Assuming the order of fields in the search results
+# table = tabulate(table_data, headers=headers, tablefmt="grid")
+# print(table)
 
 
 

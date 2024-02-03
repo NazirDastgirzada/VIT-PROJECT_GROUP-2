@@ -183,3 +183,39 @@ def mark_book_favorite(user_id, book_id):
         print(f"Error marking book as favorite: {str(e)}")
 
 
+def my_profile(user_id):
+    try:
+        if not dbo.db_user_signed_in(user_id):
+            print("Please sign in to view your profile.")
+            return None
+
+        # Fetch user profile details
+        profile_details = dbo.db_my_profile(user_id)
+
+        # Display user profile details
+        if profile_details:
+            print("Your Profile Details:")
+            for key, value in profile_details.items():
+                print(f"{key.capitalize()}: {value}")
+        else:
+            print("No profile details found for the user.")
+
+    except Exception as e:
+        print(f"Error retrieving profile: {str(e)}")
+        return None
+    
+# import typer
+# from tabulate import tabulate
+# import library_db_operations as dbo
+
+def user_statistics(user_id):
+    """
+    Retrieve and process user statistics.
+    """
+    try:
+        statistics = dbo.db_user_statistics(user_id)
+        return statistics
+
+    except Exception as e:
+        print(f"Error retrieving user statistics: {str(e)}")
+        return None
