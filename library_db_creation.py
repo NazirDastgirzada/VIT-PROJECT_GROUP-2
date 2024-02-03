@@ -99,6 +99,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS user_book_interactions (
 c.execute("""CREATE TABLE IF NOT EXISTS user_sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
+    session_token TEXT UNIQUE, -- Unique session token
     sign_in_time DATETIME NOT NULL,
     sign_out_time DATETIME,
     is_active INTEGER DEFAULT 1, -- 1 for active, 0 for inactive

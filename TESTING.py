@@ -1,40 +1,22 @@
-
 import sqlite3
-from datetime import datetime
-
-import typer
-
-app = typer.Typer()
-
-# Define the starting screen command as callback and set it to invoke without command
-@app.callback(invoke_without_command=True)
-def start():
-    typer.echo("Welcome to the Library Program!")
-    typer.echo("Choose an option:")
-    typer.echo("1. Sign Up")
-    typer.echo("2. Sign In")
-    typer.echo("3. Donate Book")
-    typer.echo("4. Borrow Book")
-    typer.echo("5. Return Book")
-    typer.echo("6. Mark Book as Read")
-    typer.echo("7. Mark Book as Favorite")
-    typer.echo("8. Search for Books")
-    typer.echo("9. Sign Out")
-
-if __name__ == "__main__":
-    app()
-
-
-import sqlite3
-import faker
+from library_db_operations import *
+from S1 import *
+from tabulate import tabulate
 import random
+from faker import Faker
+import string
 
-# Initialize Faker generator
-fake = faker.Faker()
+fake = Faker()
 
+def get_connection():
+    return sqlite3.connect('library.db')
+"""========================================================"""
+"""TESTING THE SIGN UP PROCESS
+THE FUNCTION WILL TAKE AN INTEGER
+IT WILL THEN SIGN THE NUMBER IT WAS GIVEN OF NEW USERS"""
 def add_mock_users(num_users=50):
-    # Connect to the database
-    conn = sqlite3.connect('library.db')
+    # open database connectoin
+    conn = get_connection()
     cursor = conn.cursor()
 
     try:
@@ -58,318 +40,246 @@ def add_mock_users(num_users=50):
         print(f"Error adding mock users: {e}")
     
     finally:
-        # Close the connection
+        # close database connection
+        conn.close()
+"""--------------------------------"""
+"""CALLING THE FUNCTION
+UNCOMMENT TO ACTIVATE"""
+# Test the function
+# add_mock_users()
+"""========================================================"""
+"""TESTING THE SIGN IN PROCESS
+THE FUNCTION WILL SIGN IN '35' RANDOM REGISTERED USERS"""
+# Connect to the SQLite database
+conn = sqlite3.connect('library.db')
+cursor = conn.cursor()
+
+# Function to get a list of (username, password) tuples from the database
+def get_user_credentials():
+    cursor.execute("SELECT username, password FROM users")
+    user_credentials = cursor.fetchall()
+    return user_credentials
+"""--------------------------------"""
+# Function to randomly select 35 user credentials
+def select_random_users():
+    user_credentials = get_user_credentials()
+    return random.sample(user_credentials, 15)
+"""--------------------------------"""
+# Attempt to sign in the randomly selected users
+def sign_in_random_users():
+    random_users = select_random_users()
+    for username, password in random_users:
+        user_sign_in(username, password)  # Call the user_sign_in function
+"""--------------------------------"""
+"""CALLING THE FUNCTION
+UNCOMMENT TO ACTIVATE"""
+# Call the function to sign in random users
+sign_in_random_users()
+
+# Close the database connection
+conn.close()
+
+"""========================================================"""
+"""TESTING SIGN OUT FUNCTION
+SIGNING OUT ALL ONLINE USERS"""
+# open database connnetion
+conn = get_connection()
+cursor = conn.cursor()
+# Function to fetch online users
+def get_online_users():
+    cursor.execute("SELECT users.username FROM user_sessions JOIN users ON user_sessions.user_id = users.user_id")
+    online_users = cursor.fetchall()
+    return [user[0] for user in online_users]
+"""-------------------------------"""
+# Function to sign out all online users
+def sign_out_all_online_users():
+    online_users = get_online_users()
+    for user in online_users:
+        user_sign_out(user)
+"""--------------------------------"""
+"""CALLING THE FUNCTION
+UNCOMMENT TO ACTIVATE"""
+# Call the function to sign out all online users
+# sign_out_all_online_users()
+
+# close database connection
+conn.close()
+
+"""========================================================"""
+"""TESTING ADD BOOK PROCESS
+THE FUNCTION WILL TAKE AN INTEGER NUMBER
+IT WILL THEN ADD THAT NUMBER OF BOOKS WITH RANDOMIZED DATA"""
+# open database connectoin
+conn = get_connection()
+cursor = conn.cursor()
+"""--------------------------------"""
+# Function to generate random book titles
+def generate_book_title():
+    return ' '.join(fake.words(nb=random.randint(1, 3))).title()
+"""--------------------------------"""
+# Function to generate random author names
+def generate_author_name():
+    return fake.name()
+"""--------------------------------"""
+# Function to generate random genres
+def generate_genres():
+    genres = ['Fiction', 'Non-fiction', 'Science Fiction', 'Fantasy', 'Mystery', 'Thriller', 'Romance', 'Horror', 'Biography', 'History']
+    num_genres = random.randint(1, 3)
+    return random.sample(genres, num_genres)
+"""--------------------------------"""
+# Function to generate random number of pages
+def generate_pages():
+    return random.randint(100, 1000)
+"""--------------------------------"""
+# Function to generate random user IDs from the database
+def get_random_user_id():
+    cursor.execute("SELECT user_id FROM users")
+    user_ids = [row[0] for row in cursor.fetchall()]
+    return random.choice(user_ids)
+"""--------------------------------"""
+# Function to add books to the database
+def add_books(num_books):
+    for _ in range(num_books):
+        book_title = generate_book_title()
+        author = generate_author_name()
+        genres = ', '.join(generate_genres())
+        pages = generate_pages()
+        added_by = get_random_user_id()
+        
+        try:
+            # Insert the book into the database using the add_book function
+            add_book(book_title, author, pages, genres, 1, added_by)
+            print(f"Book '{book_title}' by {author} added to the database.")
+        except Exception as e:
+            print(f"Error adding book '{book_title}': {e}")
+"""--------------------------------"""
+"""CALLING THE FUNCTION
+# UNCOMMENT TO ACTIVATE"""
+# Add around 200 books to the database
+# add_books(50)
+
+# close database connection
+conn.close()
+
+"""=========================================================="""
+
+def db_fetch_user1(username=None, email=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        if username and email:
+            query = """
+                SELECT u.*, 
+                       CASE WHEN s.is_active = 1 THEN 'Online' ELSE 'Offline' END AS status
+                FROM users u
+                LEFT JOIN user_sessions s ON u.user_id = s.user_id
+                WHERE username = ? OR email = ?
+            """
+            params = (username, email)
+        elif username:
+            query = """
+                SELECT u.*, 
+                       CASE WHEN s.is_active = 1 THEN 'Online' ELSE 'Offline' END AS status
+                FROM users u
+                LEFT JOIN user_sessions s ON u.user_id = s.user_id
+                WHERE username = ?
+            """
+            params = (username,)
+        elif email:
+            query = """
+                SELECT u.*, 
+                       CASE WHEN s.is_active = 1 THEN 'Online' ELSE 'Offline' END AS status
+                FROM users u
+                LEFT JOIN user_sessions s ON u.user_id = s.user_id
+                WHERE email = ?
+            """
+            params = (email,)
+        else:
+            return None
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        return rows
+    except sqlite3.Error as e:
+        print(f"Database error occurred: {str(e)}")
+        return None
+    finally:
         conn.close()
 
-# Test the function
-add_mock_users()
+
+# users = db_fetch_user1(username='umorgan')
+
+# print(users)
 
 
+def search_users1(username=None, email=None, status=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        query = """
+            SELECT u.username, u.email
+            FROM users u
+            """
+        conditions = []
+        params = []
+
+        if username:
+            conditions.append("u.username = ?")
+            params.append(username)
+        if email:
+            conditions.append("u.email = ?")
+            params.append(email)
+        if status:
+            if status.lower() == 'online':
+                query += """
+                LEFT JOIN user_sessions s ON u.user_id = s.user_id 
+                WHERE s.is_active = 1
+                """
+            elif status.lower() == 'offline':
+                query += """
+                LEFT JOIN user_sessions s ON u.user_id = s.user_id 
+                WHERE s.is_active = 0 OR s.is_active IS NULL
+                """
+            # If status is not 'online' or 'offline', ignore status filter
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        return rows
+    except sqlite3.Error as e:
+        print(f"Database error occurred: {str(e)}")
+        return None
+    finally:
+        conn.close()
 
 
+# users = search_users1(username='majd')
 
+# print(users)
 
-# def get_connection():
-#     return sqlite3.connect('library.db')
-# # --------------------------
-# # Func: insert user to database
-# def db_insert_user(email, username, password):
-#     conn = sqlite3.connect('your_database.db')
-#     cursor = conn.cursor()
-#     try:
-#         # Insert the new user into the database
-#         query = "INSERT INTO users (email, username, password) VALUES (?, ?, ?)"
-#         values = (email, username, password)
-#         cursor.execute(query, values)
-#         conn.commit()
-#     except sqlite3.Error as e:
-#         conn.rollback()
-#         raise e
-#     finally:
-#         conn.close()
-# # ------------------------------------------------------------    
-# # Func: search and fetch user from database
-# def db_fetch_user(username=None, email=None):
-#     conn = sqlite3.connect('your_database.db')
-#     cursor = conn.cursor()
-#     try:
-#         if username and email:
-#             query = "SELECT * FROM users WHERE username = ? OR email = ?"
-#             params = (username, email)
-#         elif username:
-#             query = "SELECT * FROM users WHERE username = ?"
-#             params = (username,)
-#         elif email:
-#             query = "SELECT * FROM users WHERE email = ?"
-#             params = (email,)
-#         else:
-#             return None
+# Test the search_users function
+# def test_search_users():
+#     # Test case 1: Search users by username
+#     username = "example_user"
+#     users_by_username = search_users(username=username)
+#     print("Users found by username:", users_by_username)
 
-#         cursor.execute(query, params)
-#         rows = cursor.fetchall()
-#         return rows
-#     except sqlite3.Error as e:
-#         print(f"Database error occurred: {str(e)}")
-#         return None
-#     finally:
-#         conn.close()
-# # Function to register a new user
-# def user_sign_up(email, username, password):
-#     try:
-#         # Check if the email already exists
-#         if dbo.db_fetch_user(email=email):
-#             print("There is already an account registered with this email address! If you lost your password, please contact us to reset it.")
-#             return False
+#     # Test case 2: Search users by user_id
+#     user_id = 1
+#     users_by_id = search_users(user_id=user_id)
+#     print("Users found by user_id:", users_by_id)
 
-#         # Check if the username already exists
-#         if db_fetch_user(username=username):
-#             print("Username already exists. Please choose a different username.")
-#             return False
+#     # Test case 3: Search users by email
+#     email = "example@example.com"
+#     users_by_email = search_users(email=email)
+#     print("Users found by email:", users_by_email)
 
-#         # Insert the new user into the database
-#         db_insert_user(email, username, password)
-#         print(f"User '{username}' registered successfully.")
-#         return True
-#     except sqlite3.Error as e:
-#         print(f"Database error occurred: {str(e)}")
-#         return False
-#     except Exception as e:
-#         print(f"Error occurred during user sign-up: {str(e)}")
-#         return False
-# # ------------------------------------------------------------    
-# # Function to register a new user
-# def user_sign_in(username, password):
-#     try:
-#         user = db_fetch_user(username=username)
-#         if user and user[0][3] == password:
-#             print(f"Sign-in successful! Welcome back {user[0][2]}!")
-#             return True
-#         else:
-#             print("Sign-in failed. Please check your credentials and try again.")
-#             return False
-#     except sqlite3.Error as e:
-#         print(f"Database error occurred: {str(e)}")
-#         return False
-#     except Exception as e:
-#         print(f"An error occurred during sign-in: {str(e)}")
-#         return False
-# # =======================================================
+# # Execute the function call to test search_users
+# users = search_users(username='majd')
 
-
-# # Func: get database connection
-# def get_connection():
-#      return sqlite3.connect('library.db')
-
-
-
-
-
-# def add_book(book_title, author, pages, genre_names, quantity_added, added_by):
-#     try:
-#         print(type(added_by))
-#         message = db_book_insert(book_title, author, pages, genre_names, quantity_added, added_by)
-#         print(message)
-#     except sqlite3.Error as e:
-#         print(f"Database error occurred: {str(e)}")
-#         return False
-#     except Exception as e:
-#         print(f"Error adding book '{book_title}': {str(e)}")
-# # -----------------------------
-# # Func: execute INSERT queries
-# Title = "to there"
-# Author = "Bringer"
-# Page_number = 139
-# Genres = "Action, Adventure, Science, Scifi, Geography"
-# Quantity = 3
-# Added_by = 2
-# add_book(Title, Author, Page_number, Genres, Quantity, 1)
-
-# def get_connection():
-#     return sqlite3.connect('library.db')
-
-
-# def db_book_insert(book_title, author, pages, genre_names, quantity_added, added_by):
-#     conn = get_connection()
-#     cursor = conn.cursor()
-
-#     try:
-#         # Convert quantity_added and added_by to integers
-#         quantity_added = int(quantity_added)
-#         added_by = int(added_by)
+# print(users)
         
-#         existing_books = db_books_fetch(book_title=book_title, author=author)
-
-#         if existing_books:
-#             book_id, current_quantity = existing_books[0][0], existing_books[0][4]
-#             new_quantity = current_quantity + quantity_added
-#             cursor.execute("UPDATE books SET quantity = ? WHERE book_id = ?", (new_quantity, book_id))
-#         else:
-#             cursor.execute("INSERT INTO books (book_title, author, pages, quantity) VALUES (?, ?, ?, ?)", (book_title, author, pages, quantity_added))
-#             book_id = cursor.lastrowid
-
-#             genre_ids = []
-#             for genre_name in genre_names.split(','):
-#                 genre_id = _db_genre_fetch_or_create(genre_name.strip(), cursor)
-#                 if genre_id:
-#                     genre_ids.append(genre_id)
-
-#             for genre_id in genre_ids:
-#                 db_book_genre_relation_update(book_id, genre_id, cursor)
-
-#         _db_book_insert_instances(book_id, quantity_added, added_by, cursor)
-#         conn.commit()
-#         return f"{quantity_added} instance(s) of '{book_title}' were added to the library."
-#     except sqlite3.Error as e:
-#         conn.rollback()
-#         raise e
-#     finally:
-#         conn.close()
-
-
-
-# def _db_book_insert_instances(book_id, quantity_added, added_by, cursor):
-#     try:
-#         date_added = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-#         instance_query = "INSERT INTO book_instance (book_title_id, availability, date_added, added_by) VALUES (?, 1, ?, ?)"
-#         instance_values = (book_id, date_added, added_by)
-#         for _ in range(quantity_added):
-#             cursor.execute(instance_query, instance_values)
-#     except sqlite3.Error as e:
-#         print(f"Error inserting book instance: {e}")
-# # Func: execute SELECT queries
-# def db_books_fetch(**kwargs):
-#     conn = get_connection()
-#     cursor = conn.cursor()
-
-#     # Construct the base query
-#     query = "SELECT * FROM books WHERE "
-#     conditions = []
-
-#     # Build the WHERE clause based on the provided search parameters
-#     for key, value in kwargs.items():
-#         conditions.append(f"{key} = ?")
-
-#     if conditions:
-#         query += " AND ".join(conditions)
-
-#     # Execute the query with parameters and return the results
-#     cursor.execute(query, tuple(kwargs.values()))
-#     rows = cursor.fetchall()
-
-#     conn.close()
-#     return rows
-
-# def _db_genre_fetch_or_create(genre_name, cursor):
-#     query = "SELECT genre_id FROM genres WHERE genre_name = ?"
-#     cursor.execute(query, (genre_name,))
-#     result = cursor.fetchone()
-#     if result:
-#         return result[0]
-#     else:
-#         try:
-#             cursor.execute("INSERT INTO genres (genre_name) VALUES (?)", (genre_name,))
-#             return cursor.lastrowid
-#         except sqlite3.Error as e:
-#             print(f"Error inserting genre: {e}")
-
-# # Func: execute INSERT queries
-# def db_book_genre_relation_update(book_id, genre_ids, cursor):
-#     try:
-#         query = "INSERT INTO book_genres (book_id, genre_id) VALUES (?, ?)"
-#         if isinstance(genre_ids, list):
-#             for genre_id in genre_ids:
-#                 cursor.execute(query, (book_id, genre_id))
-#         else:
-#             cursor.execute(query, (book_id, genre_ids))
-#     except sqlite3.Error as e:
-#         print(f"Error inserting book-genre relation: {e}")
-
-
-# def search_books(book_title=None, author=None, genres=None, limit=None, order_by=None):
-#     conn = sqlite3.connect('library.db')
-#     cursor = conn.cursor()
-
-#     # Base query
-#     query = "SELECT b.book_id, b.book_title, b.author, b.pages, b.quantity, " \
-#             "GROUP_CONCAT(g.genre_name, ', ') AS genres " \
-#             "FROM books b " \
-#             "LEFT JOIN book_genres bg ON b.book_id = bg.book_id " \
-#             "LEFT JOIN genres g ON bg.genre_id = g.genre_id "
-
-#     # Constructing WHERE clause
-#     conditions = []
-#     params = []
-
-#     if book_title:
-#         conditions.append("b.book_title LIKE ?")
-#         params.append(f"%{book_title}%")
-#     if author:
-#         conditions.append("b.author LIKE ?")
-#         params.append(f"%{author}%")
-#     if genres:
-#         genres_conditions = " OR ".join(["g.genre_name LIKE ?" for _ in genres])
-#         conditions.append(f"({genres_conditions})")
-#         params.extend([f"%{genre}%" for genre in genres])
-
-#     if conditions:
-#         query += "WHERE " + " AND ".join(conditions)
-
-#     # Grouping
-#     query += " GROUP BY b.book_id"
-
-#     # Ordering
-#     if order_by:
-#         query += f" ORDER BY {order_by}"
-
-#     # Limiting results
-#     if limit:
-#         query += f" LIMIT {limit}"
-
-#     try:
-#         cursor.execute(query, params)
-#         books = cursor.fetchall()
-#         return books
-#     except sqlite3.Error as e:
-#         print(f"Error searching for books: {e}")
-#         return None
-#     finally:
-#         conn.close()
-
-
-# Test case for search_books function
-# def test_search_books():
-#     from pprint import pprint
-
-#     # Test with different combinations of parameters
-#     print("Searching books by title 'Harry Potter':")
-#     pprint(search_books(book_title='Harry Potter'))
-
-#     print("\nSearching books by author 'J.K. Rowling':")
-#     pprint(search_books(author='J.K. Rowling'))
-
-#     print("\nSearching books by genre 'Fantasy':")
-#     pprint(search_books(genres=['Fantasy']))
-
-#     print("\nSearching books by multiple genres:")
-#     pprint(search_books(genres=['Fantasy', 'Adventure']))
-
-#     print("\nSearching books with limit and order by pages:")
-#     pprint(search_books(limit=5, order_by='pages'))
-
-#     print("\nSearching books with title 'Lord of the Rings' and author 'Tolkien':")
-#     pprint(search_books(book_title='Lord of the Rings', author='Tolkien'))
-
-#     print("\nSearching books with genre 'Mystery' and order by quantity:")
-#     pprint(search_books(genres=['Mystery'], order_by='quantity'))
-
-# if __name__ == "__main__":
-#     test_search_books()
-
-
-# Title = "Brouth to there"
-# Author = "Bringer"
-# Page_number = 199
-# Genres = "Action"
-# Quantity = 3
-# Added_by = 1
-# add_book(Title, Author, Page_number, Genres, Quantity, 1)
+# results = search_books(genres="Fantasy")
+# print(results)
